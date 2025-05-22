@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dimensional Portal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: #000;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .title {
+            font-size: clamp(2rem, 6vw, 4rem);
+            font-weight: 100;
+            color: rgba(255, 255, 255, 0.9);
+            text-align: center;
+            margin-bottom: 1rem;
+            letter-spacing: 0.1em;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 2s ease 1s forwards;
+        }
+
+        .message {
+            font-size: clamp(1rem, 2.5vw, 1.5rem);
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            max-width: 600px;
+            padding: 0 2rem;
+            line-height: 1.6;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 2s ease 1.5s forwards;
+        }
+
+        .interact-hint {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.5);
+            opacity: 0;
+            animation: fadeIn 1s ease 3s forwards;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.2rem;
+            z-index: 100;
+            opacity: 1;
+            transition: opacity 1s ease;
+        }
+
+        .loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .particle-count {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: 'Monaco', monospace;
+            font-size: 0.8rem;
+            z-index: 10;
+        }
+
+        @media (max-width: 768px) {
+            .particle-count {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="loading" id="loading">Initializing dimensional field...</div>
+    
+    <div class="overlay">
+        <h1 class="title">Thinking of You</h1>
+        <p class="message">
+            In this infinite space of possibilities, your friendship means everything. 
+            Each particle represents a moment we've shared, a laugh we've had, 
+            or a memory that matters.
+        </p>
+        <div class="interact-hint">Move your cursor to shape reality</div>
+    </div>
+    
+    <div class="particle-count" id="particleCount">Particles: 0</div>
+
+    <script>
+        class Particle {
+            constructor(x, y, z) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.vz = (Math.random() - 0.5) * 0.5;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.01 + 0.005;
+                this.size = Math.random() * 2 + 1;
+                this.originalSize = this.size;
+                this.hue = Math.random() * 60 + 180; // Blue to cyan range
+                this.attractionForce = 0;
+            }
+
+            update(mouseX, mouseY, width, height) {
+                // Convert mouse position to 3D space
+                const mouse3DX = (mouseX / width) * 400 - 200;
+                const mouse3DY = (mouseY / height) * 400 - 200;
+                const mouse3DZ = 0;
+
+                // Calculate distance to mouse
+                const dx = mouse3DX - this.x;
+                const dy = mouse3DY - this.y;
+                const dz = mouse3DZ - this.z;
+                const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                // Apply attraction/repulsion force
+                if (distance < 100) {
+                    const force = (100 - distance) / 100;
+                    this.attractionForce = force;
+                    
+                    // Attract particles to mouse
+                    this.vx += (dx / distance) * force * 0.1;
+                    this.vy += (dy / distance) * force * 0.1;
+                    this.vz += (dz / distance) * force * 0.05;
+                    
+                    // Increase size when close to mouse
+                    this.size = this.originalSize * (1 + force);
+                    
+                    // Brighten when close
+                    this.life = Math.min(1.0, this.life + force * 0.02);
+                } else {
+                    this.attractionForce *= 0.95;
+                    this.size = this.originalSize;
+                }
+
+                // Update position
+                this.x += this.vx;
+                this.y += this.vy;
+                this.z += this.vz;
+
+                // Apply some drag
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                this.vz *= 0.98;
+
+                // Boundary wrapping
+                if (this.x > 200) this.x = -200;
+                if (this.x < -200) this.x = 200;
+                if (this.y > 200) this.y = -200;
+                if (this.y < -200) this.y = 200;
+                if (this.z > 100) this.z = -100;
+                if (this.z < -100) this.z = 100;
+
+                // Life decay
+                this.life -= this.decay;
+                if (this.life <= 0) {
+                    this.life = 1.0;
+                    // Respawn at random location
+                    this.x = (Math.random() - 0.5) * 400;
+                    this.y = (Math.random() - 0.5) * 400;
+                    this.z = (Math.random() - 0.5) * 200;
+                }
+            }
+
+            draw(ctx, width, height) {
+                // Project 3D to 2D
+                const focalLength = 300;
+                const scale = focalLength / (focalLength + this.z);
+                const x2d = (this.x * scale) + width / 2;
+                const y2d = (this.y * scale) + height / 2;
+
+                if (x2d < 0 || x2d > width || y2d < 0 || y2d > height) return;
+
+                const alpha = this.life * scale;
+                const size = this.size * scale;
+                
+                // Create gradient for depth effect
+                const gradient = ctx.createRadialGradient(x2d, y2d, 0, x2d, y2d, size);
+                
+                const intensity = Math.min(1, this.attractionForce + 0.3);
+                gradient.addColorStop(0, `hsla(${this.hue}, 70%, ${50 + intensity * 30}%, ${alpha})`);
+                gradient.addColorStop(1, `hsla(${this.hue}, 70%, ${30 + intensity * 20}%, 0)`);
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(x2d, y2d, size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Add glow effect for close particles
+                if (this.attractionForce > 0.5) {
+                    ctx.shadowColor = `hsl(${this.hue}, 70%, 60%)`;
+                    ctx.shadowBlur = size * 2;
+                    ctx.beginPath();
+                    ctx.arc(x2d, y2d, size * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+            }
+        }
+
+        class ParticleField {
+            constructor() {
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.particles = [];
+                this.mouseX = 0;
+                this.mouseY = 0;
+                this.particleCount = 800;
+                
+                this.setupCanvas();
+                this.createParticles();
+                this.setupEvents();
+                this.animate();
+                
+                // Hide loading after particles are created
+                setTimeout(() => {
+                    document.getElementById('loading').classList.add('hidden');
+                }, 1500);
+            }
+
+            setupCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                
+                window.addEventListener('resize', () => {
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+                });
+            }
+
+            createParticles() {
+                for (let i = 0; i < this.particleCount; i++) {
+                    const x = (Math.random() - 0.5) * 400;
+                    const y = (Math.random() - 0.5) * 400;
+                    const z = (Math.random() - 0.5) * 200;
+                    this.particles.push(new Particle(x, y, z));
+                }
+                
+                // Update particle count display
+                document.getElementById('particleCount').textContent = `Particles: ${this.particleCount}`;
+            }
+
+            setupEvents() {
+                this.canvas.addEventListener('mousemove', (e) => {
+                    this.mouseX = e.clientX;
+                    this.mouseY = e.clientY;
+                });
+
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    this.mouseX = touch.clientX;
+                    this.mouseY = touch.clientY;
+                });
+
+                // Add particles on click
+                this.canvas.addEventListener('click', (e) => {
+                    for (let i = 0; i < 20; i++) {
+                        const mouse3DX = (e.clientX / this.canvas.width) * 400 - 200;
+                        const mouse3DY = (e.clientY / this.canvas.height) * 400 - 200;
+                        
+                        const x = mouse3DX + (Math.random() - 0.5) * 50;
+                        const y = mouse3DY + (Math.random() - 0.5) * 50;
+                        const z = (Math.random() - 0.5) * 50;
+                        
+                        this.particles.push(new Particle(x, y, z));
+                    }
+                    
+                    // Remove old particles to maintain performance
+                    if (this.particles.length > this.particleCount + 100) {
+                        this.particles.splice(0, 20);
+                    }
+                });
+            }
+
+            animate() {
+                // Clear with slight trail effect
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Update and draw particles
+                this.particles.forEach(particle => {
+                    particle.update(this.mouseX, this.mouseY, this.canvas.width, this.canvas.height);
+                    particle.draw(this.ctx, this.canvas.width, this.canvas.height);
+                });
+
+                requestAnimationFrame(() => this.animate());
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            new ParticleField();
+        });
+    </script>
+</body>
+</html>
